@@ -6,7 +6,7 @@
 
 | | Ссылка |
 |---|--------|
-| **Репозиторий** | `[link]` |
+| **Репозиторий** | https://github.com/y13sint/olymp |
 | **Видеоролик** | `[link]` |
 | **Документация** | [DOCUMENTATION.docx](./DOCUMENTATION.docx) |
 
