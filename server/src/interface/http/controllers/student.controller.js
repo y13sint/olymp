@@ -4,7 +4,7 @@ import { findExistingPickup, findActiveSubscription, createMealPickup, getTodayD
 import { parsePagination, paginatedResponse } from '../../../shared/utils/index.js'
 import db from '../../../infrastructure/database/models/index.cjs'
 
-const { User, Payment, Subscription, MealPickup, MenuItem, Allergy, Review, FoodPreference } = db
+const { User, Payment, Subscription, MealPickup, MenuItem, Allergy, Review, FoodPreference, MenuItemIngredient, Product, Inventory, Notification } = db
 
 export async function createPayment(req, res, next) {
   const transaction = await db.sequelize.transaction()
@@ -83,11 +83,33 @@ export async function pickupMeal(req, res, next) {
     if (!menuItem) throw ApiError.notFound('Блюдо не найдено')
     if (menuItem.menuDay.menuDate !== today) throw ApiError.badRequest('Это блюдо не из сегодняшнего меню')
 
+    if (!menuItem.isAvailable) {
+      throw ApiError.badRequest('Блюдо временно недоступно')
+    }
+
     const existingPickup = await findExistingPickup(userId, menuItem.mealType, today, transaction)
     if (existingPickup) throw ApiError.conflict(`Вы уже получили ${getMealTypeName(menuItem.mealType)} сегодня`)
 
+    const ingredients = await MenuItemIngredient.findAll({
+      where: { menuItemId },
+      include: [{
+        model: Product,
+        as: 'product',
+        lock: transaction.LOCK.UPDATE,
+      }],
+      transaction,
+    })
+
+    for (const ing of ingredients) {
+      if (parseFloat(ing.product.quantity) < parseFloat(ing.quantity)) {
+        throw ApiError.badRequest(`Недостаточно ингредиента: ${ing.product.name}`)
+      }
+    }
+
     const user = await User.findByPk(userId, { lock: transaction.LOCK.UPDATE, transaction })
     const activeSubscription = await findActiveSubscription(userId, menuItem.mealType, today, transaction)
+
+    const paidBy = activeSubscription ? 'subscription' : 'balance'
 
     if (!activeSubscription) {
       if (!hasEnoughBalance(user.balance, menuItem.price)) {
@@ -96,10 +118,51 @@ export async function pickupMeal(req, res, next) {
       await User.decrement('balance', { by: menuItem.price, where: { id: userId }, transaction })
     }
 
-    const pickup = await createMealPickup({ userId, menuItemId, pickupDate: today, mealType: menuItem.mealType }, transaction)
+    for (const ing of ingredients) {
+      await Product.decrement('quantity', {
+        by: parseFloat(ing.quantity),
+        where: { id: ing.productId },
+        transaction,
+      })
+
+      await Inventory.create({
+        productId: ing.productId,
+        quantityChange: -parseFloat(ing.quantity),
+        reason: `Выдача: ${menuItem.name}`,
+      }, { transaction })
+    }
+
+    const pickup = await createMealPickup({ userId, menuItemId, pickupDate: today, mealType: menuItem.mealType, paidBy }, transaction)
+
+    for (const ing of ingredients) {
+      const updatedProduct = await Product.findByPk(ing.productId, { transaction })
+      if (parseFloat(updatedProduct.quantity) < parseFloat(updatedProduct.minQuantity)) {
+        const affectedItems = await MenuItemIngredient.findAll({
+          where: { productId: ing.productId },
+          attributes: ['menuItemId'],
+          transaction,
+        })
+        const menuItemIds = affectedItems.map(i => i.menuItemId)
+
+        await MenuItem.update(
+          { isAvailable: false },
+          { where: { id: menuItemIds }, transaction }
+        )
+
+        const cooks = await User.findAll({ where: { role: 'cook' }, attributes: ['id'], transaction })
+        for (const cook of cooks) {
+          await Notification.create({
+            userId: cook.id,
+            title: 'Низкий остаток продукта',
+            message: `${updatedProduct.name}: осталось ${updatedProduct.quantity} ${updatedProduct.unit}. Блюда с этим ингредиентом отключены.`,
+          }, { transaction })
+        }
+      }
+    }
+
     await transaction.commit()
 
-    res.status(201).json({ message: 'Питание заказано', pickup, paidBy: activeSubscription ? 'subscription' : 'balance' })
+    res.status(201).json({ message: 'Питание заказано', pickup, paidBy })
   } catch (error) {
     await transaction.rollback()
     next(error)

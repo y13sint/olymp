@@ -38,6 +38,7 @@ import {
   GroupOutlined,
   CalendarOutlined,
   SendOutlined,
+  ExperimentOutlined,
 } from '@ant-design/icons'
 import { useNavigate, useLocation } from 'react-router-dom'
 import dayjs from 'dayjs'
@@ -61,6 +62,7 @@ const menuItems = {
   [ROLES.COOK]: [
     { key: ROUTES.COOK.MEALS, icon: <CoffeeOutlined />, label: 'Выдача блюд' },
     { key: ROUTES.COOK.INVENTORY, icon: <InboxOutlined />, label: 'Склад' },
+    { key: ROUTES.COOK.RECIPES, icon: <ExperimentOutlined />, label: 'Рецептура' },
     { key: ROUTES.COOK.REQUESTS, icon: <UnorderedListOutlined />, label: 'Заявки' },
   ],
   [ROLES.ADMIN]: [

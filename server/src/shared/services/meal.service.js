@@ -33,6 +33,7 @@ export async function createMealPickup(data, transaction = null) {
     menuItemId: data.menuItemId,
     pickupDate: data.pickupDate || getTodayDate(),
     mealType: data.mealType,
+    paidBy: data.paidBy || 'balance',
     isReceived: false,
   }, transaction ? { transaction } : undefined)
 }

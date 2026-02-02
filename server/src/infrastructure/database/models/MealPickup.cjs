@@ -56,6 +56,12 @@ module.exports = (sequelize) => {
         allowNull: true,
         field: 'received_at',
       },
+      paidBy: {
+        type: DataTypes.ENUM('balance', 'subscription'),
+        allowNull: false,
+        defaultValue: 'balance',
+        field: 'paid_by',
+      },
       createdAt: {
         type: DataTypes.DATE,
         allowNull: false,

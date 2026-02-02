@@ -1,6 +1,10 @@
 // API
 export const API_TIMEOUT = 30000
-export const REFETCH_INTERVALS = { NOTIFICATIONS: 30000, COOK_MEALS: 30000 }
+export const REFETCH_INTERVALS = { 
+  NOTIFICATIONS: 30000, 
+  COOK_MEALS: 30000,
+  STATISTICS: 60000,  
+}
 export const STALE_TIMES = { DEFAULT: 5 * 60 * 1000 }
 
 // Пагинация

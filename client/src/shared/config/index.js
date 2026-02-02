@@ -13,7 +13,7 @@ export const ROUTES = {
   REGISTER: '/register',
   HOME: '/',
   STUDENT: { MENU: '/student/menu', ORDERS: '/student/orders', PAYMENTS: '/student/payments', PROFILE: '/student/profile', REVIEWS: '/student/reviews' },
-  COOK: { MEALS: '/cook/meals', INVENTORY: '/cook/inventory', REQUESTS: '/cook/requests' },
+  COOK: { MEALS: '/cook/meals', INVENTORY: '/cook/inventory', REQUESTS: '/cook/requests', RECIPES: '/cook/recipes' },
   ADMIN: {
     DASHBOARD: '/admin/dashboard',
     REQUESTS: '/admin/requests',

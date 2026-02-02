@@ -7,6 +7,7 @@ module.exports = (sequelize) => {
     static associate(models) {
       Product.hasMany(models.Inventory, { foreignKey: 'productId', as: 'inventoryRecords' })
       Product.hasMany(models.PurchaseRequest, { foreignKey: 'productId', as: 'purchaseRequests' })
+      Product.hasMany(models.MenuItemIngredient, { foreignKey: 'productId', as: 'usedInItems' })
     }
   }
 

@@ -56,16 +56,13 @@ export function AdminDashboardPage() {
     refetchAttendance()
   }, [refetchPayment, refetchAttendance])
 
-  const paymentStats = paymentData?.stats || []
-  const summary = paymentData?.summary || { totalAmount: 0, totalCount: 0 }
+  const stats = paymentData?.stats || { balance: { count: 0, total: 0 }, subscription: { count: 0, total: 0 } }
+  const summary = paymentData?.summary || { totalIncome: 0, totalCount: 0 }
   const byMealType = attendanceData?.byMealType || []
   const byDate = attendanceData?.byDate || []
 
-  const singlePayments = paymentStats.find((p) => p.type === 'single')
-  const subscriptionPayments = paymentStats.find((p) => p.type === 'subscription')
-
-  const breakfastCount = byMealType.find((m) => m.mealType === 'breakfast')?.dataValues?.count || 0
-  const lunchCount = byMealType.find((m) => m.mealType === 'lunch')?.dataValues?.count || 0
+  const breakfastCount = byMealType.find((m) => m.mealType === 'breakfast')?.count || 0
+  const lunchCount = byMealType.find((m) => m.mealType === 'lunch')?.count || 0
 
   const isLoading = paymentLoading || attendanceLoading
   const hasError = paymentError || attendanceError
@@ -79,8 +76,8 @@ export function AdminDashboardPage() {
     },
     {
       title: 'Выдано блюд',
+      dataIndex: 'count',
       key: 'count',
-      render: (_, record) => record.dataValues?.count || record.count,
     },
   ], [])
 
@@ -119,7 +116,7 @@ export function AdminDashboardPage() {
               <Card>
                 <Statistic
                   title="Общий доход"
-                  value={summary.totalAmount}
+                  value={summary.totalIncome}
                   suffix="₽"
                   valueStyle={{ color: '#3f8600' }}
                 />
@@ -128,7 +125,7 @@ export function AdminDashboardPage() {
             <Col xs={12} sm={6}>
               <Card>
                 <Statistic
-                  title="Всего платежей"
+                  title="Всего операций"
                   value={summary.totalCount}
                 />
               </Card>
@@ -136,24 +133,24 @@ export function AdminDashboardPage() {
             <Col xs={12} sm={6}>
               <Card>
                 <Statistic
-                  title="Разовые платежи"
-                  value={singlePayments?.dataValues?.total || 0}
+                  title="Оплачено с баланса"
+                  value={stats.balance.total}
                   suffix="₽"
                 />
                 <Text type="secondary">
-                  {singlePayments?.dataValues?.count || 0} шт
+                  {stats.balance.count} выдач
                 </Text>
               </Card>
             </Col>
             <Col xs={12} sm={6}>
               <Card>
                 <Statistic
-                  title="Абонементы"
-                  value={subscriptionPayments?.dataValues?.total || 0}
+                  title="По абонементам"
+                  value={stats.subscription.total}
                   suffix="₽"
                 />
                 <Text type="secondary">
-                  {subscriptionPayments?.dataValues?.count || 0} шт
+                  {stats.subscription.count} выдач
                 </Text>
               </Card>
             </Col>

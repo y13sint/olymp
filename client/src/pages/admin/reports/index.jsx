@@ -12,11 +12,14 @@ import {
   Spin,
   Tabs,
   Tag,
+  Button,
+  message,
 } from 'antd'
 import {
   FileTextOutlined,
   WalletOutlined,
   CoffeeOutlined,
+  DownloadOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { MainLayout } from '@widgets/layouts'
@@ -33,12 +36,32 @@ export function AdminReportsPage() {
     dayjs().startOf('month'),
     dayjs(),
   ])
+  const [exporting, setExporting] = useState(false)
 
   // Debounce для RangePicker
   const debouncedDateRange = useDebouncedValue(dateRange, DEBOUNCE_DELAYS.DATE_PICKER)
 
   const startDate = debouncedDateRange?.[0]?.format('YYYY-MM-DD')
   const endDate = debouncedDateRange?.[1]?.format('YYYY-MM-DD')
+
+  // Экспорт отчёта в CSV
+  const handleExport = async () => {
+    if (!startDate || !endDate) {
+      message.warning('Выберите период для экспорта')
+      return
+    }
+    
+    setExporting(true)
+    try {
+      await adminApi.exportReport(startDate, endDate)
+      message.success('Отчёт успешно сформирован')
+    } catch (err) {
+      message.error('Ошибка при формировании отчёта')
+      console.error(err)
+    } finally {
+      setExporting(false)
+    }
+  }
 
   // Загрузка отчёта
   const { data, isPending, error, refetch } = useQuery({
@@ -93,8 +116,8 @@ export function AdminReportsPage() {
   const paymentsColumns = useMemo(() => [
     {
       title: 'Дата',
+      dataIndex: 'date',
       key: 'date',
-      render: (_, record) => record.dataValues?.date || record.date,
     },
     {
       title: 'Тип',
@@ -108,15 +131,14 @@ export function AdminReportsPage() {
     },
     {
       title: 'Сумма',
+      dataIndex: 'total',
       key: 'total',
-      render: (_, record) => (
-        <Text strong>{record.dataValues?.total || record.total}₽</Text>
-      ),
+      render: (total) => <Text strong>{total}₽</Text>,
     },
     {
       title: 'Количество',
+      dataIndex: 'count',
       key: 'count',
-      render: (_, record) => record.dataValues?.count || record.count,
     },
   ], [])
 
@@ -149,7 +171,7 @@ export function AdminReportsPage() {
         <Table
           columns={paymentsColumns}
           dataSource={payments.data}
-          rowKey={(record) => `${record.dataValues?.date}-${record.type}`}
+          rowKey={(record) => `${record.date}-${record.type}`}
           pagination={{ pageSize: PAGE_SIZES.LARGE }}
           size="small"
         />
@@ -175,6 +197,15 @@ export function AdminReportsPage() {
             onChange={setDateRange}
             format="DD.MM.YYYY"
           />
+          <Button
+            type="primary"
+            icon={<DownloadOutlined />}
+            onClick={handleExport}
+            loading={exporting}
+            disabled={!startDate || !endDate}
+          >
+            Скачать отчёт (CSV)
+          </Button>
         </Space>
       </Space>
 

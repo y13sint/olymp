@@ -1,4 +1,5 @@
 import { apiClient } from './index.js'
+import dayjs from 'dayjs'
 
 export const menuApi = {
   getWeekMenu: async () => {
@@ -15,6 +16,13 @@ export const menuApi = {
   getMenuByDate: async (date) => {
     const { data } = await apiClient.get(`/menu/${date}`)
     return data
+  },
+
+  getTodayMenu: async () => {
+    const today = dayjs().format('YYYY-MM-DD')
+    const { data } = await apiClient.get('/menu')
+    const todayMenu = data.menuDays?.find(day => day.menuDate === today)
+    return { menu: todayMenu || null, menuItems: todayMenu?.menuItems || [] }
   },
 
   getMenuItemReviews: async (menuItemId) => {

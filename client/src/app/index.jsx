@@ -20,7 +20,7 @@ dayjs.extend(isoWeek)
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      refetchOnWindowFocus: false,
+      refetchOnWindowFocus: true, 
       retry: 1,
       staleTime: STALE_TIMES.DEFAULT,
       meta: { onError: handleQueryError },

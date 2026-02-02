@@ -5,6 +5,7 @@ import {
   getAllPurchaseRequests,
   updatePurchaseRequest,
   getReport,
+  exportReport,
   getAllMenuDays,
   createMenuDay,
   addMenuItem,
@@ -44,6 +45,7 @@ router.put('/purchase-requests/:id', validate(purchaseRequestStatusSchema), upda
 
 // Отчёты
 router.get('/reports', validate(dateRangeQuerySchema), getReport)
+router.get('/reports/export', validate(dateRangeQuerySchema), exportReport)
 
 // Управление меню
 router.get('/menu', getAllMenuDays)

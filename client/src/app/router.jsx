@@ -16,6 +16,7 @@ const StudentReviewsPage = lazy(() => import('@pages/student/reviews').then(m =>
 const CookMealsPage = lazy(() => import('@pages/cook/meals').then(m => ({ default: m.CookMealsPage })))
 const CookInventoryPage = lazy(() => import('@pages/cook/inventory').then(m => ({ default: m.CookInventoryPage })))
 const CookRequestsPage = lazy(() => import('@pages/cook/requests').then(m => ({ default: m.CookRequestsPage })))
+const CookRecipesPage = lazy(() => import('@pages/cook/recipes').then(m => ({ default: m.CookRecipesPage })))
 
 const AdminDashboardPage = lazy(() => import('@pages/admin/dashboard').then(m => ({ default: m.AdminDashboardPage })))
 const AdminRequestsPage = lazy(() => import('@pages/admin/requests').then(m => ({ default: m.AdminRequestsPage })))
@@ -125,6 +126,14 @@ export function AppRouter() {
           element={
             <ProtectedRoute allowedRoles={[ROLES.COOK]}>
               <CookRequestsPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path={ROUTES.COOK.RECIPES}
+          element={
+            <ProtectedRoute allowedRoles={[ROLES.COOK]}>
+              <CookRecipesPage />
             </ProtectedRoute>
           }
         />

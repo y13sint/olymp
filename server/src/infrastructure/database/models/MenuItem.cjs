@@ -8,6 +8,7 @@ module.exports = (sequelize) => {
       MenuItem.belongsTo(models.MenuDay, { foreignKey: 'menuDayId', as: 'menuDay' })
       MenuItem.hasMany(models.MealPickup, { foreignKey: 'menuItemId', as: 'mealPickups' })
       MenuItem.hasMany(models.Review, { foreignKey: 'menuItemId', as: 'reviews' })
+      MenuItem.hasMany(models.MenuItemIngredient, { foreignKey: 'menuItemId', as: 'ingredients' })
     }
   }
 

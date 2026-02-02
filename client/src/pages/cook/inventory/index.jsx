@@ -10,15 +10,20 @@ import {
   Form,
   InputNumber,
   Input,
+  Select,
+  Checkbox,
   message,
   Space,
   Progress,
+  Popconfirm,
 } from 'antd'
 import {
   InboxOutlined,
   PlusOutlined,
   MinusOutlined,
   WarningOutlined,
+  EditOutlined,
+  DeleteOutlined,
 } from '@ant-design/icons'
 import { MainLayout } from '@widgets/layouts'
 import { cookApi } from '@shared/api'
@@ -27,26 +32,36 @@ import { TABLE_COLUMN_WIDTHS, VALIDATION, INVENTORY } from '@shared/constants'
 
 const { Title, Text } = Typography
 
+const UNIT_OPTIONS = [
+  { value: 'кг', label: 'кг (килограммы)' },
+  { value: 'л', label: 'л (литры)' },
+  { value: 'шт', label: 'шт (штуки)' },
+  { value: 'г', label: 'г (граммы)' },
+  { value: 'мл', label: 'мл (миллилитры)' },
+  { value: 'уп', label: 'уп (упаковки)' },
+]
+
 export function CookInventoryPage() {
   const queryClient = useQueryClient()
-  const [modalOpen, setModalOpen] = useState(false)
+  const [quantityModalOpen, setQuantityModalOpen] = useState(false)
+  const [productModalOpen, setProductModalOpen] = useState(false)
   const [selectedProduct, setSelectedProduct] = useState(null)
-  const [form] = Form.useForm()
+  const [editMode, setEditMode] = useState(false)
+  const [quantityForm] = Form.useForm()
+  const [productForm] = Form.useForm()
 
-  // Загрузка продуктов
   const { data, isPending, error, refetch } = useQuery({
     queryKey: ['inventory'],
     queryFn: cookApi.getInventory,
   })
 
-  // Обновление остатка
   const updateMutation = useMutation({
     mutationFn: ({ id, quantityChange, reason }) =>
       cookApi.updateInventory(id, { quantityChange, reason }),
     onSuccess: (data) => {
       message.success(data.message)
-      setModalOpen(false)
-      form.resetFields()
+      setQuantityModalOpen(false)
+      quantityForm.resetFields()
       queryClient.invalidateQueries({ queryKey: ['inventory'] })
     },
     onError: (error) => {
@@ -54,16 +69,76 @@ export function CookInventoryPage() {
     },
   })
 
-  const openModal = (product, isAdding) => {
+  const createProductMutation = useMutation({
+    mutationFn: cookApi.createProduct,
+    onSuccess: (data) => {
+      message.success(data.message)
+      setProductModalOpen(false)
+      productForm.resetFields()
+      queryClient.invalidateQueries({ queryKey: ['inventory'] })
+    },
+    onError: (error) => {
+      message.error(error.response?.data?.error || 'Ошибка')
+    },
+  })
+
+  const updateProductMutation = useMutation({
+    mutationFn: ({ id, ...data }) => cookApi.updateProduct(id, data),
+    onSuccess: (data) => {
+      message.success(data.message)
+      setProductModalOpen(false)
+      productForm.resetFields()
+      setEditMode(false)
+      setSelectedProduct(null)
+      queryClient.invalidateQueries({ queryKey: ['inventory'] })
+    },
+    onError: (error) => {
+      message.error(error.response?.data?.error || 'Ошибка')
+    },
+  })
+
+  const deleteProductMutation = useMutation({
+    mutationFn: cookApi.deleteProduct,
+    onSuccess: (data) => {
+      message.success(data.message)
+      queryClient.invalidateQueries({ queryKey: ['inventory'] })
+    },
+    onError: (error) => {
+      message.error(error.response?.data?.error || 'Ошибка')
+    },
+  })
+
+  const openQuantityModal = (product, isAdding) => {
     setSelectedProduct({ ...product, isAdding })
-    form.setFieldsValue({ quantity: 0, reason: '' })
-    setModalOpen(true)
+    quantityForm.setFieldsValue({ quantity: VALIDATION.INVENTORY.MIN_QUANTITY, reason: '' })
+    setQuantityModalOpen(true)
   }
 
-  const handleSubmit = (values) => {
-    const quantityChange = selectedProduct.isAdding
-      ? Math.abs(values.quantity)
-      : -Math.abs(values.quantity)
+  const openCreateModal = () => {
+    setEditMode(false)
+    setSelectedProduct(null)
+    productForm.resetFields()
+    setProductModalOpen(true)
+  }
+
+  const openEditModal = (product) => {
+    setEditMode(true)
+    setSelectedProduct(product)
+    productForm.setFieldsValue({
+      name: product.name,
+      unit: product.unit,
+      minQuantity: parseFloat(product.minQuantity),
+    })
+    setProductModalOpen(true)
+  }
+
+  const handleQuantitySubmit = (values) => {
+    const qty = parseFloat(values.quantity)
+    if (!qty || qty <= 0 || isNaN(qty)) {
+      message.error('Введите корректное количество')
+      return
+    }
+    const quantityChange = selectedProduct.isAdding ? qty : -qty
 
     updateMutation.mutate({
       id: selectedProduct.id,
@@ -72,9 +147,21 @@ export function CookInventoryPage() {
     })
   }
 
+  const handleProductSubmit = (values) => {
+    if (editMode) {
+      updateProductMutation.mutate({
+        id: selectedProduct.id,
+        name: values.name,
+        unit: values.unit,
+        minQuantity: values.minQuantity,
+      })
+    } else {
+      createProductMutation.mutate(values)
+    }
+  }
+
   const products = data?.products || []
 
-  // Статические колонки мемоизируем
   const staticColumns = useMemo(() => [
     {
       title: 'Продукт',
@@ -133,29 +220,48 @@ export function CookInventoryPage() {
     },
   ], [])
 
-  // Колонка с callbacks
   const columns = [
     ...staticColumns,
     {
       title: 'Действия',
       key: 'actions',
+      width: TABLE_COLUMN_WIDTHS.HUGE + 80,
       render: (_, record) => (
         <Space>
           <Button
             size="small"
             icon={<PlusOutlined />}
-            onClick={() => openModal(record, true)}
+            onClick={() => openQuantityModal(record, true)}
           >
             Приход
           </Button>
           <Button
             size="small"
             icon={<MinusOutlined />}
-            onClick={() => openModal(record, false)}
+            onClick={() => openQuantityModal(record, false)}
             danger
           >
             Расход
           </Button>
+          <Button
+            size="small"
+            icon={<EditOutlined />}
+            onClick={() => openEditModal(record)}
+          />
+          <Popconfirm
+            title="Удалить продукт?"
+            description="Это действие нельзя отменить"
+            onConfirm={() => deleteProductMutation.mutate(record.id)}
+            okText="Да"
+            cancelText="Нет"
+          >
+            <Button
+              size="small"
+              icon={<DeleteOutlined />}
+              danger
+              loading={deleteProductMutation.isPending}
+            />
+          </Popconfirm>
         </Space>
       ),
     },
@@ -178,7 +284,13 @@ export function CookInventoryPage() {
         <InboxOutlined /> Склад продуктов
       </Title>
 
-      <Card>
+      <Card
+        extra={
+          <Button type="primary" icon={<PlusOutlined />} onClick={openCreateModal}>
+            Добавить продукт
+          </Button>
+        }
+      >
         <Table
           columns={columns}
           dataSource={products}
@@ -195,11 +307,11 @@ export function CookInventoryPage() {
             ? `Приход: ${selectedProduct?.name}`
             : `Расход: ${selectedProduct?.name}`
         }
-        open={modalOpen}
-        onCancel={() => setModalOpen(false)}
+        open={quantityModalOpen}
+        onCancel={() => setQuantityModalOpen(false)}
         footer={null}
       >
-        <Form form={form} onFinish={handleSubmit} layout="vertical">
+        <Form form={quantityForm} onFinish={handleQuantitySubmit} layout="vertical">
           <Form.Item
             name="quantity"
             label="Количество"
@@ -232,6 +344,91 @@ export function CookInventoryPage() {
             block
           >
             {selectedProduct?.isAdding ? 'Добавить' : 'Списать'}
+          </Button>
+        </Form>
+      </Modal>
+
+      <Modal
+        title={editMode ? 'Редактировать продукт' : 'Добавить продукт'}
+        open={productModalOpen}
+        onCancel={() => {
+          setProductModalOpen(false)
+          setEditMode(false)
+          setSelectedProduct(null)
+          productForm.resetFields()
+        }}
+        footer={null}
+      >
+        <Form form={productForm} onFinish={handleProductSubmit} layout="vertical">
+          <Form.Item
+            name="name"
+            label="Название"
+            rules={[{ required: true, message: 'Введите название' }]}
+          >
+            <Input placeholder="Например: Молоко" />
+          </Form.Item>
+          <Form.Item
+            name="unit"
+            label="Единица измерения"
+            rules={[{ required: true, message: 'Выберите единицу измерения' }]}
+          >
+            <Select options={UNIT_OPTIONS} placeholder="Выберите" />
+          </Form.Item>
+          {!editMode && (
+            <Form.Item
+              name="quantity"
+              label="Начальный остаток"
+              initialValue={0}
+            >
+              <InputNumber min={0} step={0.5} style={{ width: '100%' }} />
+            </Form.Item>
+          )}
+          <Form.Item
+            name="minQuantity"
+            label="Минимальный остаток (для уведомлений)"
+            initialValue={0}
+          >
+            <InputNumber min={0} step={0.5} style={{ width: '100%' }} />
+          </Form.Item>
+          {!editMode && (
+            <>
+              <Form.Item
+                name="createPurchaseRequest"
+                valuePropName="checked"
+                initialValue={false}
+              >
+                <Checkbox>Создать заявку на закупку</Checkbox>
+              </Form.Item>
+              <Form.Item
+                noStyle
+                shouldUpdate={(prev, curr) => prev.createPurchaseRequest !== curr.createPurchaseRequest}
+              >
+                {({ getFieldValue }) =>
+                  getFieldValue('createPurchaseRequest') && (
+                    <>
+                      <Form.Item
+                        name="purchaseQuantity"
+                        label="Количество для закупки"
+                        rules={[{ required: true, message: 'Введите количество' }]}
+                      >
+                        <InputNumber min={1} step={1} style={{ width: '100%' }} />
+                      </Form.Item>
+                      <Form.Item name="purchaseComment" label="Комментарий к заявке">
+                        <Input.TextArea rows={2} placeholder="Срочность, особые требования..." />
+                      </Form.Item>
+                    </>
+                  )
+                }
+              </Form.Item>
+            </>
+          )}
+          <Button
+            type="primary"
+            htmlType="submit"
+            loading={createProductMutation.isPending || updateProductMutation.isPending}
+            block
+          >
+            {editMode ? 'Сохранить' : 'Создать'}
           </Button>
         </Form>
       </Modal>

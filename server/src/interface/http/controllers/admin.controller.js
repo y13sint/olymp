@@ -11,19 +11,46 @@ const { User, Payment, MealPickup, PurchaseRequest, Product, MenuDay, MenuItem }
 export async function getPaymentStats(req, res, next) {
   try {
     const { startDate, endDate } = req.query
-    const where = { status: 'completed' }
-    if (startDate && endDate) where.createdAt = { [Op.between]: [new Date(startDate), new Date(endDate + 'T23:59:59')] }
+    
+    // Фильтр по дате для блюд
+    const mealsWhere = { isReceived: true }
+    if (startDate && endDate) mealsWhere.pickupDate = { [Op.between]: [startDate, endDate] }
 
-    const payments = await Payment.findAll({
-      where,
-      attributes: ['type', [fn('COUNT', col('id')), 'count'], [fn('SUM', col('amount')), 'total']],
-      group: ['type'],
+    // Получаем все выданные блюда с ценами (один запрос)
+    const mealsData = await MealPickup.findAll({
+      where: mealsWhere,
+      include: [{ association: 'menuItem', attributes: ['price'] }],
+      attributes: ['id', 'paidBy'],
     })
 
-    const totalAmount = payments.reduce((sum, p) => sum + parseFloat(p.dataValues.total || 0), 0)
-    const totalCount = payments.reduce((sum, p) => sum + parseInt(p.dataValues.count || 0), 0)
+    // Разделяем по способу оплаты и считаем выручку
+    let balanceTotal = 0
+    let balanceCount = 0
+    let subscriptionTotal = 0
+    let subscriptionCount = 0
 
-    res.json({ stats: payments, summary: { totalAmount, totalCount } })
+    for (const meal of mealsData) {
+      const price = parseFloat(meal.menuItem?.price || 0)
+      if (meal.paidBy === 'subscription') {
+        subscriptionTotal += price
+        subscriptionCount++
+      } else {
+        balanceTotal += price
+        balanceCount++
+      }
+    }
+
+    // Общий доход = выручка с баланса + выручка с абонементов (по факту использования)
+    const totalIncome = balanceTotal + subscriptionTotal
+    const totalCount = balanceCount + subscriptionCount
+
+    res.json({
+      stats: {
+        balance: { count: balanceCount, total: balanceTotal },
+        subscription: { count: subscriptionCount, total: subscriptionTotal },
+      },
+      summary: { totalIncome, totalCount },
+    })
   } catch (error) {
     next(error)
   }
@@ -35,10 +62,14 @@ export async function getAttendanceStats(req, res, next) {
     const where = { isReceived: true }
     if (startDate && endDate) where.pickupDate = { [Op.between]: [startDate, endDate] }
 
-    const [byMealType, byDate] = await Promise.all([
-      MealPickup.findAll({ where, attributes: ['mealType', [fn('COUNT', col('id')), 'count']], group: ['mealType'] }),
-      MealPickup.findAll({ where, attributes: ['pickupDate', [fn('COUNT', col('id')), 'count']], group: ['pickupDate'], order: [['pickupDate', 'DESC']], limit: 30 }),
+    const [byMealTypeRaw, byDateRaw] = await Promise.all([
+      MealPickup.findAll({ where, attributes: ['mealType', [fn('COUNT', col('id')), 'count']], group: ['mealType'], raw: true }),
+      MealPickup.findAll({ where, attributes: ['pickupDate', [fn('COUNT', col('id')), 'count']], group: ['pickupDate'], order: [['pickupDate', 'DESC']], limit: 30, raw: true }),
     ])
+
+    
+    const byMealType = byMealTypeRaw.map(m => ({ mealType: m.mealType, count: parseInt(m.count || 0) }))
+    const byDate = byDateRaw.map(d => ({ pickupDate: d.pickupDate, count: parseInt(d.count || 0) }))
 
     res.json({ byMealType, byDate })
   } catch (error) {
@@ -100,7 +131,7 @@ export async function getReport(req, res, next) {
     const { startDate, endDate } = req.query
     const dateFilter = startDate && endDate ? { [Op.between]: [startDate, endDate] } : {}
 
-    const [mealsReport, paymentsReport] = await Promise.all([
+    const [mealsReport, paymentsReportRaw] = await Promise.all([
       MealPickup.findAll({
         where: { isReceived: true, ...(startDate && endDate ? { pickupDate: dateFilter } : {}) },
         include: [
@@ -114,12 +145,21 @@ export async function getReport(req, res, next) {
         attributes: [[fn('DATE', col('created_at')), 'date'], 'type', [fn('SUM', col('amount')), 'total'], [fn('COUNT', col('id')), 'count']],
         group: [fn('DATE', col('created_at')), 'type'],
         order: [[fn('DATE', col('created_at')), 'DESC']],
+        raw: true,
       }),
     ])
 
+    
+    const paymentsReport = paymentsReportRaw.map(p => ({
+      date: p.date,
+      type: p.type,
+      total: parseFloat(p.total || 0),
+      count: parseInt(p.count || 0),
+    }))
+
     const totalMeals = mealsReport.length
     const totalRevenue = mealsReport.reduce((sum, m) => sum + parseFloat(m.menuItem?.price || 0), 0)
-    const totalPayments = paymentsReport.reduce((sum, p) => sum + parseFloat(p.dataValues.total || 0), 0)
+    const totalPayments = paymentsReport.reduce((sum, p) => sum + p.total, 0)
 
     res.json({
       period: { startDate, endDate },
@@ -283,6 +323,108 @@ export async function restoreUser(req, res, next) {
     if (user.deletedAt === null) throw ApiError.badRequest('Пользователь не был удалён')
     await user.restore()
     res.json({ message: 'Пользователь восстановлен', user: user.toJSON() })
+  } catch (error) {
+    next(error)
+  }
+}
+
+export async function exportReport(req, res, next) {
+  try {
+    const { startDate, endDate } = req.query
+    const dateFilter = startDate && endDate ? { [Op.between]: [startDate, endDate] } : {}
+
+    // Получаем данные о питании и затратах параллельно
+    const [mealsData, purchasesData] = await Promise.all([
+      // Питание - выданные блюда
+      MealPickup.findAll({
+        where: { isReceived: true, ...(startDate && endDate ? { pickupDate: dateFilter } : {}) },
+        include: [
+          { association: 'menuItem', attributes: ['name', 'price', 'mealType'] },
+          { association: 'user', attributes: ['fullName', 'classNumber', 'classLetter'] },
+        ],
+        order: [['pickupDate', 'DESC']],
+      }),
+      // Затраты - одобренные закупки
+      PurchaseRequest.findAll({
+        where: { 
+          status: 'approved',
+          ...(startDate && endDate ? { updatedAt: { [Op.between]: [new Date(startDate), new Date(endDate + 'T23:59:59')] } } : {})
+        },
+        include: [
+          { association: 'product', attributes: ['name', 'unit'] },
+          { association: 'creator', attributes: ['fullName'] },
+          { association: 'approver', attributes: ['fullName'] },
+        ],
+        order: [['updatedAt', 'DESC']],
+      }),
+    ])
+
+    // Формируем CSV
+    const BOM = '\uFEFF' // UTF-8 BOM для корректного отображения кириллицы в Excel
+    let csv = BOM
+
+    // Заголовок отчёта
+    csv += `ОТЧЁТ О ПИТАНИИ И ЗАТРАТАХ\n`
+    csv += `Период: ${startDate || 'начало'} - ${endDate || 'конец'}\n`
+    csv += `Дата формирования: ${new Date().toLocaleDateString('ru-RU')}\n\n`
+
+    // Раздел: Питание
+    csv += `=== ПИТАНИЕ (выданные блюда) ===\n`
+    csv += `Дата;Ученик;Класс;Блюдо;Тип;Способ оплаты;Цена (руб.)\n`
+    
+    let totalMealsRevenue = 0
+    let balanceRevenue = 0
+    let subscriptionRevenue = 0
+    let balanceCount = 0
+    let subscriptionCount = 0
+
+    for (const meal of mealsData) {
+      const date = meal.pickupDate
+      const student = meal.user?.fullName || '-'
+      const classInfo = meal.user ? `${meal.user.classNumber || ''}${meal.user.classLetter || ''}` : '-'
+      const dish = meal.menuItem?.name || '-'
+      const mealType = meal.menuItem?.mealType === 'breakfast' ? 'Завтрак' : 'Обед'
+      const paidBy = meal.paidBy === 'subscription' ? 'Абонемент' : 'Баланс'
+      const price = parseFloat(meal.menuItem?.price || 0)
+      
+      totalMealsRevenue += price
+      if (meal.paidBy === 'subscription') {
+        subscriptionRevenue += price
+        subscriptionCount++
+      } else {
+        balanceRevenue += price
+        balanceCount++
+      }
+      
+      csv += `${date};${student};${classInfo};${dish};${mealType};${paidBy};${price.toFixed(2)}\n`
+    }
+    csv += `\nИТОГО выдано блюд: ${mealsData.length}\n`
+    csv += `  - Оплачено с баланса: ${balanceCount} выдач на ${balanceRevenue.toFixed(2)} руб.\n`
+    csv += `  - По абонементам: ${subscriptionCount} выдач на ${subscriptionRevenue.toFixed(2)} руб.\n`
+    csv += `ИТОГО выручка: ${totalMealsRevenue.toFixed(2)} руб.\n\n`
+
+    // Раздел: Затраты
+    csv += `=== ЗАТРАТЫ (закупки продуктов) ===\n`
+    csv += `Дата;Продукт;Количество;Единица;Создал;Одобрил\n`
+    
+    for (const purchase of purchasesData) {
+      const date = new Date(purchase.updatedAt).toLocaleDateString('ru-RU')
+      const product = purchase.product?.name || '-'
+      const quantity = parseFloat(purchase.quantity || 0)
+      const unit = purchase.product?.unit || '-'
+      const creator = purchase.creator?.fullName || '-'
+      const approver = purchase.approver?.fullName || '-'
+      
+      csv += `${date};${product};${quantity};${unit};${creator};${approver}\n`
+    }
+    csv += `\nИТОГО закупок: ${purchasesData.length}\n`
+
+    // Устанавливаем заголовки для скачивания файла
+    const filename = `report_${startDate || 'all'}_${endDate || 'all'}.csv`
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8')
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`)
+    
+    res.send(csv)
   } catch (error) {
     next(error)
   }

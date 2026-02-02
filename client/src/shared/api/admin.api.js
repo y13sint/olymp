@@ -34,6 +34,25 @@ export const adminApi = {
     return data
   },
 
+  exportReport: async (startDate, endDate) => {
+    const params = startDate && endDate ? { startDate, endDate } : {}
+    const response = await apiClient.get('/admin/reports/export', {
+      params,
+      responseType: 'blob',
+    })
+    
+    // Создаём ссылку для скачивания
+    const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8' })
+    const url = window.URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `report_${startDate || 'all'}_${endDate || 'all'}.csv`
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    window.URL.revokeObjectURL(url)
+  },
+
   // Меню
   getMenuDays: async (pagination = {}) => {
     const params = buildParams({}, pagination)

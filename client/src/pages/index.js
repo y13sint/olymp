@@ -16,6 +16,7 @@ export { StudentReviewsPage } from './student/reviews'
 export { CookMealsPage } from './cook/meals'
 export { CookInventoryPage } from './cook/inventory'
 export { CookRequestsPage } from './cook/requests'
+export { CookRecipesPage } from './cook/recipes'
 
 // Admin pages
 export { AdminDashboardPage } from './admin/dashboard'
