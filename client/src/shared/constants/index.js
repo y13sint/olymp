@@ -1,0 +1,38 @@
+// API
+export const API_TIMEOUT = 30000
+export const REFETCH_INTERVALS = { NOTIFICATIONS: 30000, COOK_MEALS: 30000 }
+export const STALE_TIMES = { DEFAULT: 5 * 60 * 1000 }
+
+// Пагинация
+export const PAGE_SIZES = { SMALL: 10, MEDIUM: 15, LARGE: 20 }
+export const DEFAULT_PAGE_SIZE = PAGE_SIZES.SMALL
+
+// Debounce (мс)
+export const DEBOUNCE_DELAYS = { SEARCH: 300, FILTER: 500, DATE_PICKER: 500 }
+
+// Валидация
+export const VALIDATION = {
+  PASSWORD_MIN_LENGTH: 6,
+  CLASS_NUMBER: { MIN: 1, MAX: 11 },
+  PAYMENT: { MIN_AMOUNT: 100, MAX_AMOUNT: 10000, STEP: 100 },
+  SUBSCRIPTION: { MIN_DAYS: 5, MAX_DAYS: 30 },
+  INVENTORY: { MIN_QUANTITY: 0.1, QUANTITY_STEP: 0.5 },
+}
+
+// UI размеры
+export const MODAL_WIDTHS = { SMALL: 400, MEDIUM: 500, LARGE: 600, EXTRA_LARGE: 700 }
+export const TABLE_COLUMN_WIDTHS = { TINY: 80, SMALL: 100, MEDIUM: 120, LARGE: 150, EXTRA_LARGE: 180, HUGE: 200 }
+
+// Отступы и шрифты
+export const SPACING = { XS: 4, SM: 8, MD: 12, LG: 16, XL: 24, XXL: 32 }
+export const FONT_SIZES = { XS: 11, SM: 12, MD: 14, LG: 16, XL: 18 }
+export const BORDER_RADIUS = { SM: 4, MD: 8, LG: 12 }
+
+// Временные периоды
+export const TIME_PERIODS = { DAYS_IN_WEEK: 7, STATISTICS_DAYS: 30, WEEKEND_START_INDEX: 5 }
+
+// Layout
+export const LAYOUT = { HEADER_HEIGHT: 64, SIDER_WIDTH: 350, NOTIFICATION_MAX_HEIGHT: 400, CONTENT_PADDING: 24 }
+
+// Склад
+export const INVENTORY = { LOW_STOCK_MULTIPLIER: 3, MAX_PERCENTAGE: 100 }
