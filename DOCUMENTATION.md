@@ -1,4 +1,4 @@
-# Документация проекта «Управление столовой»
+﻿# Документация проекта «Управление столовой»
 
 ---
 
@@ -1271,5 +1271,14 @@ CREATE UNIQUE INDEX unique_user_meal_per_day ON meal_pickups(user_id, pickup_dat
 | <student1@school.ru> | password123 | Ученик 9А |
 | <student2@school.ru> | password123 | Ученик 10Б |
 | <student3@school.ru> | password123 | Ученик 11В |
+
+---
+
+## 8. Ссылки
+
+| Ресурс | Ссылка |
+|--------|--------|
+| **Репозиторий GitHub** | <https://github.com/y13sint/olymp> |
+| **Видеоролик (RuTube)** | <https://rutube.ru/video/private/e5cf8df8bd6053212e6d7bf1a6061338/?p=gZJb-ObAcz5952qcP-qjOg> |
 
 ---

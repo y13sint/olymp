@@ -7,7 +7,7 @@
 | | Ссылка |
 |---|--------|
 | **Репозиторий** | <https://github.com/y13sint/olymp> |
-| **Видеоролик** | `[link]` |
+| **Видеоролик** | <https://rutube.ru/video/private/e5cf8df8bd6053212e6d7bf1a6061338/?p=gZJb-ObAcz5952qcP-qjOg> |
 | **Документация** | [DOCUMENTATION.docx](./DOCUMENTATION.docx) |
 
 ---
