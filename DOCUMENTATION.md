@@ -142,7 +142,7 @@ server/src/
 │  │                    React SPA (Vite)                              │    │
 │  │  ┌───────────┐ ┌───────────┐ ┌───────────┐ ┌───────────────────┐ │    │
 │  │  │  Ученик   │ │   Повар   │ │   Админ   │ │   Общие модули    │ │    │
-│  │  │  (5 стр.) │ │  (3 стр.) │ │  (8 стр.) │ │  (auth, layout)   │ │    │
+│  │  │  (5 стр.) │ │  (4 стр.) │ │  (8 стр.) │ │  (auth, layout)   │ │    │
 │  │  └─────┬─────┘ └─────┬─────┘ └─────┬─────┘ └─────────┬─────────┘ │    │
 │  │        │             │             │                 │           │    │
 │  │        └─────────────┴─────────────┴─────────────────┘           │    │
@@ -336,8 +336,8 @@ server/src/
 │  │ MenuPage     │       │ MealsPage    │     │ DashboardPage│   │
 │  │ PaymentsPage │       │ InventoryPage│     │ RequestsPage │   │
 │  │ ProfilePage  │       │ RequestsPage │     │ ReportsPage  │   │
-│  │ ReviewsPage  │       └──────────────┘     │ MenuPage     │   │
-│  │ OrdersPage   │                            │ UsersPage    │   │
+│  │ ReviewsPage  │       │ RecipesPage  │     │ MenuPage     │   │
+│  │ OrdersPage   │       └──────────────┘     │ UsersPage    │   │
 │  └──────────────┘                            │ TemplatesPage│   │
 │                                              └──────────────┘   │
 │         │                      │                    │           │
