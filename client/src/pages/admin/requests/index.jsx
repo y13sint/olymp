@@ -30,13 +30,11 @@ const { Title, Text } = Typography
 export function AdminRequestsPage() {
   const queryClient = useQueryClient()
 
-  // Загрузка заявок
   const { data, isPending, error, refetch } = useQuery({
     queryKey: ['admin-requests'],
     queryFn: () => adminApi.getPurchaseRequests({}),
   })
 
-  // Обновление статуса
   const updateMutation = useMutation({
     mutationFn: ({ id, status }) => adminApi.updatePurchaseRequest(id, status),
     onSuccess: (data) => {
@@ -51,7 +49,6 @@ export function AdminRequestsPage() {
   const requests = data?.requests || []
   const pendingCount = requests.filter((r) => r.status === 'pending').length
 
-  // Колонки без callbacks можно мемоизировать
   const staticColumns = useMemo(() => [
     {
       title: 'Дата',
@@ -63,10 +60,13 @@ export function AdminRequestsPage() {
     {
       title: 'От кого',
       key: 'creator',
+      width: TABLE_COLUMN_WIDTHS.EXTRA_LARGE,
       render: (_, record) => (
-        <Space>
+        <Space style={{ whiteSpace: 'nowrap' }}>
           <UserOutlined />
-          <Text>{record.creator?.fullName}</Text>
+          <Text ellipsis={{ tooltip: record.creator?.fullName }}>
+            {record.creator?.fullName}
+          </Text>
         </Space>
       ),
     },
@@ -110,7 +110,6 @@ export function AdminRequestsPage() {
     },
   ], [])
 
-  // Колонка действий с callbacks
   const columns = [
     ...staticColumns,
     {
